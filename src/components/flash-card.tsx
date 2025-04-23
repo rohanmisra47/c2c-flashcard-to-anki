@@ -3,14 +3,26 @@
 import { useState } from "react";
 import { Card } from "./ui/card";
 import { cn } from "@/lib/utils";
+import { BookmarkIcon } from "lucide-react";
+import { Button } from "./ui/button";
 
 interface FlashCardProps {
   question: string;
   answer: string;
+  onSave?: () => void;
 }
 
-export function FlashCard({ question, answer }: FlashCardProps) {
+export function FlashCard({ question, answer, onSave }: FlashCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const handleSave = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent card from flipping when clicking save
+    if (onSave) {
+      onSave();
+      setIsSaved(true);
+    }
+  };
 
   return (
     <div 
@@ -27,7 +39,20 @@ export function FlashCard({ question, answer }: FlashCardProps) {
         <Card className="absolute w-full h-full p-6 backface-hidden bg-card hover:bg-accent/5 transition-colors">
           <div className="relative h-full">
             <div className="absolute inset-0 pointer-events-none shine-effect" />
-            <div className="font-medium text-lg text-primary">Q: {question}</div>
+            <div className="flex justify-between items-start">
+              <div className="font-medium text-lg text-primary pr-8">Q: {question}</div>
+              <Button
+                size="icon"
+                variant={isSaved ? "default" : "outline"}
+                className="shrink-0 z-10"
+                onClick={handleSave}
+              >
+                <BookmarkIcon className={cn(
+                  "h-4 w-4",
+                  isSaved ? "fill-primary-foreground" : "fill-none"
+                )} />
+              </Button>
+            </div>
           </div>
         </Card>
 
@@ -35,7 +60,20 @@ export function FlashCard({ question, answer }: FlashCardProps) {
         <Card className="absolute w-full h-full p-6 backface-hidden rotate-y-180 bg-card hover:bg-accent/5 transition-colors">
           <div className="relative h-full">
             <div className="absolute inset-0 pointer-events-none shine-effect" />
-            <div className="text-muted-foreground">A: {answer}</div>
+            <div className="flex justify-between items-start">
+              <div className="text-muted-foreground pr-8">A: {answer}</div>
+              <Button
+                size="icon"
+                variant={isSaved ? "default" : "outline"}
+                className="shrink-0 z-10"
+                onClick={handleSave}
+              >
+                <BookmarkIcon className={cn(
+                  "h-4 w-4",
+                  isSaved ? "fill-primary-foreground" : "fill-none"
+                )} />
+              </Button>
+            </div>
           </div>
         </Card>
       </div>

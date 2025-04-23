@@ -1,14 +1,15 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Textarea } from "./ui/textarea";
 import { Button } from "./ui/button";
 import { FlashCard } from "./flash-card";
-import { Download, Save } from "lucide-react";
+import { Download, Save, Trash2 } from "lucide-react";
 
 interface Flashcard {
   question: string;
   answer: string;
+  id?: string;
 }
 
 export function TextInput() {
@@ -18,6 +19,34 @@ export function TextInput() {
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState<string>("");
   const [totalChunks, setTotalChunks] = useState<number>(0);
+  const [savedFlashcards, setSavedFlashcards] = useState<Flashcard[]>([]);
+  const [isClient, setIsClient] = useState(false);
+
+  // Set isClient to true once component mounts
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Load saved flashcards from localStorage only on client side
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('savedFlashcards');
+      if (saved) {
+        try {
+          setSavedFlashcards(JSON.parse(saved));
+        } catch (e) {
+          console.error('Error loading saved flashcards:', e);
+        }
+      }
+    }
+  }, []);
+
+  // Save to localStorage whenever savedFlashcards changes
+  useEffect(() => {
+    if (typeof window !== 'undefined' && savedFlashcards.length > 0) {
+      localStorage.setItem('savedFlashcards', JSON.stringify(savedFlashcards));
+    }
+  }, [savedFlashcards]);
 
   const handleSubmit = async () => {
     if (!text.trim()) {
@@ -65,20 +94,13 @@ export function TextInput() {
     }
   };
 
-  const handleSave = () => {
-    const flashcardsText = flashcards
-      .map(card => `Q: ${card.question}\nA: ${card.answer}\n\n`)
-      .join('');
-    
-    const blob = new Blob([flashcardsText], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'flashcards.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleSaveAll = () => {
+    const timestamp = Date.now();
+    const newFlashcards = flashcards.map((card, index) => ({
+      ...card,
+      id: `${timestamp}-${index}`
+    }));
+    setSavedFlashcards(prev => [...prev, ...newFlashcards]);
   };
 
   const handleExportAnki = () => {
@@ -96,6 +118,22 @@ export function TextInput() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
   };
+
+  const handleSaveFlashcard = (flashcard: Flashcard) => {
+    const newFlashcard = {
+      ...flashcard,
+      id: `${Date.now()}-${Math.random().toString(36).slice(2)}`
+    };
+    setSavedFlashcards(prev => [...prev, newFlashcard]);
+  };
+
+  const handleRemoveSaved = (id: string) => {
+    setSavedFlashcards(prev => prev.filter(card => card.id !== id));
+  };
+
+  if (!isClient) {
+    return null; // or a loading spinner
+  }
 
   return (
     <div className="w-full max-w-7xl mx-auto p-4 space-y-6">
@@ -118,12 +156,12 @@ export function TextInput() {
           {flashcards.length > 0 && (
             <>
               <Button
-                onClick={handleSave}
+                onClick={handleSaveAll}
                 variant="outline"
                 className="gap-2 border-border/50 hover:bg-accent"
               >
                 <Save className="w-4 h-4" />
-                Save as Text
+                Save All
               </Button>
               <Button
                 onClick={handleExportAnki}
@@ -150,6 +188,7 @@ export function TextInput() {
         </div>
       )}
 
+      {/* Generated Flashcards Section */}
       {flashcards.length > 0 && (
         <div className="space-y-6 animate-fadeIn">
           <div className="flex items-center justify-between">
@@ -167,7 +206,38 @@ export function TextInput() {
                 key={index}
                 question={flashcard.question}
                 answer={flashcard.answer}
+                onSave={() => handleSaveFlashcard(flashcard)}
               />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Saved Flashcards Section */}
+      {savedFlashcards.length > 0 && (
+        <div className="space-y-6 animate-fadeIn border-t border-border/50 pt-8 mt-8">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold text-primary">
+              Saved Flashcards ({savedFlashcards.length})
+            </h3>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {savedFlashcards.map((flashcard) => (
+              <div key={flashcard.id} className="relative">
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute -top-2 -right-2 z-20 bg-destructive hover:bg-destructive/90 text-destructive-foreground"
+                  onClick={() => handleRemoveSaved(flashcard.id!)}
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+                <FlashCard
+                  question={flashcard.question}
+                  answer={flashcard.answer}
+                />
+              </div>
             ))}
           </div>
         </div>
